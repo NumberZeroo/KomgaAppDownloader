@@ -1,0 +1,156 @@
+# ui/series_books.kv
+#:import dp kivy.metrics.dp
+
+<SeriesBooksScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.18, 0.10, 0.28, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: 0
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(60)
+            padding: [dp(8), dp(8)]
+            spacing: dp(10)
+            canvas.before:
+                Color:
+                    rgba: 0.22, 0.13, 0.34, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: 'INDIETRO'
+                font_size: dp(11)
+                size_hint_x: None
+                width: dp(80)
+                background_color: 0, 0, 0, 0
+                on_release: root.go_back()
+                canvas.before:
+                    Color:
+                        rgba: 0.30, 0.18, 0.45, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(6)]
+
+            BoxLayout:
+                orientation: 'vertical'
+                spacing: dp(2)
+
+                Label:
+                    text: root.series_name
+                    font_size: dp(15)
+                    bold: True
+                    color: 0.95, 0.80, 0.10, 1
+                    halign: 'left'
+                    text_size: self.size
+                    valign: 'middle'
+                    shorten: True
+
+                Label:
+                    text: root.status_text
+                    font_size: dp(11)
+                    color: 0.65, 0.55, 0.80, 1
+                    halign: 'left'
+                    text_size: self.size
+                    valign: 'middle'
+
+        ScrollView:
+            do_scroll_x: False
+            bar_color: 0.95, 0.80, 0.10, 0.6
+            bar_inactive_color: 0.35, 0.22, 0.50, 0.4
+            bar_width: dp(3)
+
+            GridLayout:
+                id: volumes_list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(6)
+                padding: [dp(8), dp(8)]
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(64) if root.is_downloading else 0
+            opacity: 1 if root.is_downloading else 0
+            orientation: 'vertical'
+            padding: [dp(12), dp(6)]
+            spacing: dp(4)
+            canvas.before:
+                Color:
+                    rgba: 0.22, 0.13, 0.34, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            BoxLayout:
+                size_hint_y: None
+                height: dp(18)
+                Label:
+                    text: root.download_status
+                    font_size: dp(11)
+                    color: 0.75, 0.70, 0.90, 1
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+                Label:
+                    text: str(root.download_progress) + '/' + str(root.download_max) + ' libri'
+                    font_size: dp(11)
+                    bold: True
+                    color: 0.95, 0.80, 0.10, 1
+                    halign: 'right'
+                    valign: 'middle'
+                    size_hint_x: None
+                    width: dp(60)
+                    text_size: self.size
+
+            ProgressBar:
+                value: root.download_progress
+                max: max(root.download_max, 1)
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(52)
+            padding: [dp(8), dp(6)]
+            spacing: dp(8)
+            canvas.before:
+                Color:
+                    rgba: 0.22, 0.13, 0.34, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: 'Tutti'
+                font_size: dp(13)
+                size_hint_x: None
+                width: dp(70)
+                background_color: 0, 0, 0, 0
+                on_release: root.select_all()
+                canvas.before:
+                    Color:
+                        rgba: 0.30, 0.18, 0.45, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(6)]
+
+            Button:
+                text: 'Scarica selezionati'
+                font_size: dp(13)
+                background_color: 0, 0, 0, 0
+                on_release: root.download_selected()
+                canvas.before:
+                    Color:
+                        rgba: 0.30, 0.18, 0.45, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(6)]

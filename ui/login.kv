@@ -1,0 +1,209 @@
+# ui/login.kv
+#:import dp kivy.metrics.dp
+
+<LoginScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.18, 0.10, 0.28, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(32)
+        spacing: dp(16)
+
+        Widget:
+            size_hint_y: 0.12
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(110)
+            spacing: dp(4)
+
+            Label:
+                text: '[b]KOMGA[/b]'
+                markup: True
+                font_size: dp(48)
+                color: 0.95, 0.80, 0.10, 1
+                size_hint_y: None
+                height: dp(60)
+                halign: 'center'
+
+            Label:
+                text: 'DOWNLOADER'
+                font_size: dp(13)
+                color: 0.65, 0.55, 0.80, 1
+                size_hint_y: None
+                height: dp(22)
+                halign: 'center'
+
+            Widget:
+                size_hint_y: None
+                height: dp(2)
+                canvas:
+                    Color:
+                        rgba: 0.95, 0.80, 0.10, 1
+                    Rectangle:
+                        pos: self.x + dp(80), self.y
+                        size: self.width - dp(160), dp(2)
+
+        Widget:
+            size_hint_y: 0.05
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(68)
+            spacing: dp(4)
+
+            Label:
+                text: 'INDIRIZZO SERVER'
+                font_size: dp(10)
+                color: 0.65, 0.55, 0.80, 1
+                halign: 'left'
+                text_size: self.size
+                size_hint_y: None
+                height: dp(16)
+
+            BoxLayout:
+                size_hint_y: None
+                height: dp(48)
+                spacing: dp(4)
+
+                TextInput:
+                    id: server_input
+                    hint_text: 'https://tuo-server.com'
+                    hint_text_color: 0.55, 0.45, 0.70, 1
+                    multiline: False
+                    font_size: dp(15)
+                    padding: [dp(14), dp(14)]
+                    background_color: 0.24, 0.15, 0.36, 1
+                    foreground_color: 0.95, 0.93, 1.00, 1
+                    cursor_color: 0.95, 0.80, 0.10, 1
+
+                Button:
+                    text: 'V'
+                    size_hint_x: None
+                    width: dp(48)
+                    background_color: 0, 0, 0, 0
+                    on_release: root.open_server_list()
+                    canvas.before:
+                        Color:
+                            rgba: 0.30, 0.18, 0.45, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(8)]
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(68)
+            spacing: dp(4)
+
+            Label:
+                text: 'EMAIL'
+                font_size: dp(10)
+                color: 0.65, 0.55, 0.80, 1
+                halign: 'left'
+                text_size: self.size
+                size_hint_y: None
+                height: dp(16)
+
+            TextInput:
+                id: email_input
+                hint_text: 'utente@server.com'
+                hint_text_color: 0.55, 0.45, 0.70, 1
+                multiline: False
+                font_size: dp(15)
+                size_hint_y: None
+                height: dp(48)
+                padding: [dp(14), dp(14)]
+                background_color: 0.24, 0.15, 0.36, 1
+                foreground_color: 0.95, 0.93, 1.00, 1
+                cursor_color: 0.95, 0.80, 0.10, 1
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(68)
+            spacing: dp(4)
+
+            Label:
+                text: 'PASSWORD'
+                font_size: dp(10)
+                color: 0.65, 0.55, 0.80, 1
+                halign: 'left'
+                text_size: self.size
+                size_hint_y: None
+                height: dp(16)
+
+            TextInput:
+                id: password_input
+                hint_text: '••••••••'
+                hint_text_color: 0.55, 0.45, 0.70, 1
+                password: True
+                multiline: False
+                font_size: dp(15)
+                size_hint_y: None
+                height: dp(48)
+                padding: [dp(14), dp(14)]
+                background_color: 0.24, 0.15, 0.36, 1
+                foreground_color: 0.95, 0.93, 1.00, 1
+                cursor_color: 0.95, 0.80, 0.10, 1
+                on_text_validate: root.do_login()
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(32)
+            spacing: dp(8)
+
+            CheckBox:
+                id: save_creds_checkbox
+                size_hint_x: None
+                width: dp(32)
+                active: False
+                color: 0.95, 0.80, 0.10, 1
+
+            Label:
+                text: 'Ricorda le credenziali'
+                font_size: dp(13)
+                color: 0.65, 0.55, 0.80, 1
+                text_size: self.size
+                valign: 'middle'
+
+        Widget:
+            size_hint_y: None
+            height: dp(8)
+
+        Button:
+            text: '[b]ACCEDI[/b]' if not root.is_loading else 'Connessione...'
+            markup: True
+            font_size: dp(15)
+            size_hint_y: None
+            height: dp(52)
+            disabled: root.is_loading
+            background_color: 0, 0, 0, 0
+            on_release: root.do_login()
+            canvas.before:
+                Color:
+                    rgba: (0.95, 0.80, 0.10, 1) if not root.is_loading else (0.45, 0.38, 0.08, 1)
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(8)]
+
+        Label:
+            text: root.status_text
+            font_size: dp(12)
+            color: 0.90, 0.35, 0.40, 1
+            size_hint_y: None
+            height: dp(24)
+            halign: 'center'
+            text_size: self.size
+
+        Widget:
+            size_hint_y: 1

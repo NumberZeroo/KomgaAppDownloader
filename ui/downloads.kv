@@ -1,0 +1,53 @@
+#:import dp kivy.metrics.dp
+
+<DownloadsScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.18, 0.10, 0.28, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(60)
+            padding: dp(10)
+            spacing: dp(10)
+            canvas.before:
+                Color:
+                    rgba: 0.22, 0.13, 0.34, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: '< INDIETRO'
+                size_hint_x: None
+                width: dp(100)
+                background_color: 0, 0, 0, 0
+                on_release: root.go_back()
+                canvas.before:
+                    Color:
+                        rgba: 0.30, 0.18, 0.45, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(8)]
+
+            Label:
+                text: 'DOWNLOAD LOCALI'
+                bold: True
+                color: 0.95, 0.80, 0.10, 1
+                halign: 'center'
+
+        ScrollView:
+            GridLayout:
+                id: downloads_list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                padding: dp(10)
+                spacing: dp(10)
