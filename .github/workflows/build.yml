@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -33,7 +30,7 @@ jobs:
 
       - name: Installa buildozer
         run: |
-          pip install buildozer==1.5.0 cython==0.29.33 virtualenv
+          pip install buildozer==1.4.0 cython==0.29.33 virtualenv
 
       - name: Cache buildozer
         uses: actions/cache@v4
@@ -45,7 +42,6 @@ jobs:
 
       - name: Sincronizza versione dal tag
         run: |
-          # Estrae la versione (es. 1.1.1) dal tag (es. v1.1.1)
           TAG=${GITHUB_REF#refs/tags/v}
           sed -i "s/^version = .*/version = $TAG/" buildozer.spec
           sed -i "s/^VERSION = .*/VERSION = \"$TAG\"/" main.py
@@ -54,12 +50,14 @@ jobs:
         env:
           ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
         run: |
-          # Eseguiamo buildozer direttamente. Se fallisce, l'action diventerà rossa.
-          buildozer -v android debug
-          
-          # Debug: Elenca i file per essere sicuri di dove sia l'APK
-          echo "Contenuto della cartella bin:"
-          ls -R bin/
+          yes | buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Trova APK generato
+        run: |
+          echo "=== Cartella bin/ ==="
+          ls -la bin/ || echo "bin/ non trovata"
+          echo "=== Cerca APK ovunque ==="
+          find . -name "*.apk" 2>/dev/null
 
       - name: Ottieni nome tag
         id: tag
@@ -70,9 +68,6 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.TAG }}
           name: "Komga Downloader ${{ steps.tag.outputs.TAG }}"
-          # Cerchiamo l'APK in modo ricorsivo se necessario
-          files: |
-            bin/*.apk
-            **/*.apk
+          files: bin/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
