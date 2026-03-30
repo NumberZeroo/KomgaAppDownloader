@@ -24,7 +24,7 @@ Builder.load_file(os.path.join(BASE_DIR, 'ui', 'series_books.kv'))
 Builder.load_file(os.path.join(BASE_DIR, 'ui', 'reader.kv'))
 Builder.load_file(os.path.join(BASE_DIR, 'ui', 'downloads.kv'))
 
-VERSION = "1.0.5"
+VERSION = "1.1.1"
 
 
 class KomgaApp(App):
