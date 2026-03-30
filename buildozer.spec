@@ -22,8 +22,6 @@ android.permissions = INTERNET
 android.enable_androidx = True
 android.archs = arm64-v8a, armeabi-v7a
 
-android.add_compile_options = -source 1.8 -target 1.8
-
 [buildozer]
 log_level = 2
 warn_on_root = 1
