@@ -83,3 +83,29 @@ def delete_credentials():
     _, _, cred_path = _get_paths()
     if os.path.exists(cred_path):
         os.remove(cred_path)
+
+
+def remove_server_from_list(server_url):
+    """Rimuove un server specifico dal database criptato."""
+    _, _, cred_path = _get_paths()
+    if not os.path.exists(cred_path):
+        return
+
+    key = _load_key()
+    f = Fernet(key)
+
+    # Carichiamo i dati attuali
+    data_dict = load_all_servers()
+
+    # Rimuoviamo il server se esiste
+    if server_url in data_dict:
+        del data_dict[server_url]
+
+        # Se abbiamo rimosso l'ultimo server usato, puliamo anche la chiave di sistema
+        if data_dict.get("_last_used") == server_url:
+            data_dict["_last_used"] = None
+
+        # Salviamo il database aggiornato
+        encrypted_data = f.encrypt(json.dumps(data_dict).encode('utf-8'))
+        with open(cred_path, "wb") as cred_file:
+            cred_file.write(encrypted_data)
