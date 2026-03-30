@@ -9,8 +9,7 @@ source.include_patterns = assets/*, ui/*, src/*
 
 version = 1.0.0
 
-requirements = python3, kivy==2.3.1, requests, pillow, cryptography, openssl
-
+requirements = python3, kivy==2.3.1, requests, pillow, cryptography, openssl, filetype, certifi, urllib3, charset-normalizer, idna
 orientation = portrait
 
 android.minapi = 21
