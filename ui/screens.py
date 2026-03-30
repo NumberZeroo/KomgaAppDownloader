@@ -170,7 +170,6 @@ class LoginScreen(Screen):
     is_loading = BooleanProperty(False)
 
     def on_enter(self):
-        # Caricamento iniziale
         try:
             e, p, s = load_credentials()
             if e and p and s:
@@ -182,7 +181,6 @@ class LoginScreen(Screen):
             print(f"Errore caricamento iniziale: {err}")
 
     def open_server_list(self):
-        """Apre un popup con la lista dei server e tasto elimina."""
         from src.credentials import load_all_servers, remove_server_from_list
         data = load_all_servers()
         servers = {k: v for k, v in data.items() if not k.startswith('_')}
@@ -199,12 +197,8 @@ class LoginScreen(Screen):
         popup = Popup(title="Gestione Server", content=scroll, size_hint=(0.9, 0.6))
 
         for url, creds in servers.items():
-            # Riga per ogni server
             row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-
-            # Bottone principale per selezionare il server
-            btn_select = Button(text=url, size_hint_x=0.8, background_color=(0, 0, 0, 0), halign='left',
-                                valign='middle')
+            btn_select = Button(text=url, size_hint_x=0.8, background_color=(0, 0, 0, 0), halign='left', valign='middle')
             btn_select.bind(size=btn_select.setter('text_size'))
             with btn_select.canvas.before:
                 Color(rgba=(0.24, 0.15, 0.36, 1))
@@ -212,25 +206,21 @@ class LoginScreen(Screen):
             btn_select.bind(pos=lambda i, v: setattr(r1, 'pos', v), size=lambda i, v: setattr(r1, 'size', v))
             btn_select.bind(on_release=lambda b, u=url, c=creds: self._select_server(u, c, popup))
 
-            # Bottone piccolo rosso per eliminare
             btn_del = Button(text="X", size_hint_x=0.2, bold=True, color=(1, 1, 1, 1), background_color=(0, 0, 0, 0))
             with btn_del.canvas.before:
-                Color(rgba=(0.6, 0.15, 0.2, 1))  # Rosso
+                Color(rgba=(0.6, 0.15, 0.2, 1))
                 r2 = RoundedRectangle(pos=btn_del.pos, size=btn_del.size, radius=[dp(8)])
             btn_del.bind(pos=lambda i, v: setattr(r2, 'pos', v), size=lambda i, v: setattr(r2, 'size', v))
 
-            # Funzione per eliminare il server e rinfrescare il popup
             def confirm_delete(instance, u=url):
                 remove_server_from_list(u)
                 popup.dismiss()
-                self.open_server_list()  # Riapre il popup aggiornato
+                self.open_server_list()
 
             btn_del.bind(on_release=confirm_delete)
-
             row.add_widget(btn_select)
             row.add_widget(btn_del)
             layout.add_widget(row)
-
         popup.open()
 
     def _select_server(self, url, creds, popup):
@@ -243,15 +233,12 @@ class LoginScreen(Screen):
         server = self.ids.server_input.text.strip()
         e = self.ids.email_input.text.strip()
         p = self.ids.password_input.text.strip()
-
         if not server or not e or not p:
             self.status_text = 'Dati mancanti'
             return
-
         if not server.startswith(('http://', 'https://')):
             server = 'https://' + server
         server = server.rstrip('/')
-
         self.is_loading = True
         app = App.get_running_app()
 
@@ -259,25 +246,17 @@ class LoginScreen(Screen):
             try:
                 app.client.base_url = server
                 success, err = app.client.login(e, p)
-
                 def _ui(dt):
                     self.is_loading = False
                     if success:
-                        # SALVATAGGIO: Lo facciamo subito qui
                         if self.ids.save_creds_checkbox.active:
-                            print(f"Salvataggio in corso per: {server}")
                             save_credentials(e, p, server)
-
-                        # Cambiamo schermo solo dopo il tentativo di salvataggio
                         app.sm.current = 'search'
                     else:
                         self.status_text = f"Errore: {err}"
-
                 Clock.schedule_once(_ui)
             except Exception as ex:
-                print(f"Errore nel thread di login: {ex}")
                 Clock.schedule_once(lambda dt: setattr(self, 'is_loading', False))
-
         threading.Thread(target=_thread, daemon=True).start()
 
 class SearchScreen(Screen):
@@ -343,15 +322,10 @@ class SearchScreen(Screen):
 
     def _populate_books(self):
         self.ids.active_list.clear_widgets()
-
-        # Usiamo un piccolo trucco: aggiungiamo i libri a gruppi di 5
-        # per non soffocare la CPU di Kivy
         def _add_chunk(dt, index=0):
             chunk_size = 5
             for _ in range(chunk_size):
-                if index >= len(self._books):
-                    return False  # Ferma il Clock
-
+                if index >= len(self._books): return False
                 b = self._books[index]
                 c = _make_card()
                 chk = CheckBox(size_hint_x=None, width=dp(30), color=C_GOLD)
@@ -359,42 +333,31 @@ class SearchScreen(Screen):
                 c.add_widget(chk)
                 c.add_widget(_make_thumbnail(b.thumbnail_url))
                 c.add_widget(_info_col(b.name, b.series_title, f'{b.pages_count} pag.'))
-
                 btns = BoxLayout(orientation='vertical', size_hint_x=None, width=dp(76), spacing=dp(4))
                 btns.add_widget(_make_btn('LEGGI', C_GOLD, callback=lambda bk=b: self.open_reader(bk)))
                 btns.add_widget(_make_btn('SCARICA', C_GREEN, callback=lambda bk=b: self.download_book(bk)))
-
                 c.add_widget(btns)
                 self.ids.active_list.add_widget(c)
                 _animate_card_in(c)
                 index += 1
-
-            # Programma il prossimo gruppo tra 0.05 secondi
             Clock.schedule_once(lambda dt: _add_chunk(dt, index), 0.05)
-
         _add_chunk(0)
 
     def _populate_series(self):
         self.ids.active_list.clear_widgets()
-
         def _add_chunk(dt, index=0):
             chunk_size = 5
             for _ in range(chunk_size):
-                if index >= len(self._series):
-                    return False
-
+                if index >= len(self._series): return False
                 s = self._series[index]
                 c = _make_card(dp(80))
                 c.add_widget(_make_thumbnail(s.thumbnail_url))
                 c.add_widget(_info_col(s.name, f'{s.books_count} volumi'))
                 c.add_widget(_make_btn('APRI', C_GOLD, dp(72), lambda sr=s: self.open_series(sr)))
-
                 self.ids.active_list.add_widget(c)
                 _animate_card_in(c)
                 index += 1
-
             Clock.schedule_once(lambda dt: _add_chunk(dt, index), 0.05)
-
         _add_chunk(0)
 
     def open_reader(self, b):
@@ -417,21 +380,48 @@ class SearchScreen(Screen):
         self.is_downloading = True
         self.download_progress = 0
         self.download_max = len(books)
+
         def _thread():
             app = App.get_running_app()
-            d = _get_save_dir()
+            base_dir = _get_save_dir()
+            skipped = 0  # Contatore file già presenti
+
             for idx, b in enumerate(books):
+                # 1. Trova nome serie per la cartella
+                s_title = getattr(b, 'series_title', 'Unknown Series')
+                serie_safe = "".join(c for c in s_title if c.isalnum() or c in ' .-_').rstrip()
+                serie_path = os.path.join(base_dir, serie_safe)
+                os.makedirs(serie_path, exist_ok=True)
+
+                # 2. Percorso file
                 safe = "".join(c for c in b.name if c.isalnum() or c in ' .-_').rstrip()
+                file_path = os.path.join(serie_path, f"{safe}.cbz")
+
+                # --- SMART CHECK: Salta se esiste ---
+                if os.path.exists(file_path):
+                    skipped += 1
+                    Clock.schedule_once(lambda dt, i=idx: setattr(self, 'download_progress', i + 1))
+                    continue
+
+                # ------------------------------------
+
                 def _prog(cur, tot, i=idx, n=len(books)):
                     Clock.schedule_once(lambda dt: setattr(self, 'download_status', f'{i + 1}/{n} - Pag {cur}/{tot}'))
-                app.client.download_book_as_cbz(b, os.path.join(d, f"{safe}.cbz"), _prog)
+
+                app.client.download_book_as_cbz(b, file_path, _prog)
                 Clock.schedule_once(lambda dt: setattr(self, 'download_progress', idx + 1))
-            Clock.schedule_once(lambda dt: setattr(self, 'is_downloading', False), 0.5)
+
+            def _finish(dt):
+                self.is_downloading = False
+                if skipped > 0:
+                    self.status_text = f"Fatto ({skipped} già presenti)"
+
+            Clock.schedule_once(_finish, 0.5)
+
         threading.Thread(target=_thread, daemon=True).start()
 
     def logout(self):
-        app = App.get_running_app()
-        app.sm.current = 'login'
+        App.get_running_app().sm.current = 'login'
 
 class SeriesBooksScreen(Screen):
     series_name = StringProperty('')
@@ -441,6 +431,32 @@ class SeriesBooksScreen(Screen):
     download_progress = NumericProperty(0)
     download_max = NumericProperty(1)
     download_status = StringProperty('')
+
+    def select_all(self):
+        """Seleziona tutti i volumi nella lista e aggiorna i CheckBox"""
+        for b in self._books:
+            setattr(b, '_selected', True)
+
+        # Aggiorna visivamente i CheckBox nella lista
+        for card in self.ids.volumes_list.children:
+            # Il CheckBox è il primo widget aggiunto alla card nel metodo _populate_volumes
+            for widget in card.children:
+                if isinstance(widget, CheckBox):
+                    widget.active = True
+
+        self.status_text = f"Selezionati {len(self._books)} volumi"
+
+    def deselect_all(self):
+        """Deseleziona tutti i volumi nella lista"""
+        for b in self._books:
+            setattr(b, '_selected', False)
+
+        for card in self.ids.volumes_list.children:
+            for widget in card.children:
+                if isinstance(widget, CheckBox):
+                    widget.active = False
+
+        self.status_text = "Selezione annullata"
 
     def load_series(self, s):
         self.series_name = s.name
@@ -476,53 +492,102 @@ class SeriesBooksScreen(Screen):
 
     def download_book_single(self, b): self._start_download([b])
 
-    def go_back(self): App.get_running_app().sm.current = 'search'
+    def download_selected(self):
+        sel = [b for b in self._books if getattr(b, '_selected', False)]
+        if sel: self._start_download(sel)
+        else: self.status_text = "Nessun volume selezionato"
 
     def _start_download(self, books):
         self.is_downloading = True
         self.download_progress = 0
         self.download_max = len(books)
+
         def _thread():
             app = App.get_running_app()
-            d = _get_save_dir()
+            base_dir = _get_save_dir()
+            skipped = 0
+
             for idx, b in enumerate(books):
+                # Cartella della serie (usa self.series_name caricato in questa schermata)
+                serie_safe = "".join(c for c in self.series_name if c.isalnum() or c in ' .-_').rstrip()
+                serie_path = os.path.join(base_dir, serie_safe)
+                os.makedirs(serie_path, exist_ok=True)
+
+                # Nome file libro
                 safe = "".join(c for c in b.name if c.isalnum() or c in ' .-_').rstrip()
-                app.client.download_book_as_cbz(b, os.path.join(d, f"{safe}.cbz"), lambda c, t: Clock.schedule_once(
-                    lambda dt: setattr(self, 'download_status', f'Vol. {idx + 1} pag. {c}/{t}')))
+                file_path = os.path.join(serie_path, f"{safe}.cbz")
+
+                # --- SMART CHECK: Salta se esiste ---
+                if os.path.exists(file_path):
+                    skipped += 1
+                    Clock.schedule_once(lambda dt, i=idx: setattr(self, 'download_progress', i + 1))
+                    continue
+
+                # ------------------------------------
+
+                def _prog(cur, tot, i=idx, n=len(books)):
+                    Clock.schedule_once(lambda dt: setattr(self, 'download_status', f'{i + 1}/{n} - Pag {cur}/{tot}'))
+
+                app.client.download_book_as_cbz(b, file_path, _prog)
                 Clock.schedule_once(lambda dt: setattr(self, 'download_progress', idx + 1))
-            Clock.schedule_once(lambda dt: setattr(self, 'is_downloading', False), 0.5)
+
+            def _finish(dt):
+                self.is_downloading = False
+                if skipped > 0:
+                    self.status_text = f"Finito ({skipped} già scaricati)"
+
+            Clock.schedule_once(_finish, 0.5)
+
         threading.Thread(target=_thread, daemon=True).start()
+
+    def go_back(self): App.get_running_app().sm.current = 'search'
 
 class DownloadsScreen(Screen):
     def on_enter(self): self.refresh_list()
     def refresh_list(self):
         self.ids.downloads_list.clear_widgets()
         path = _get_save_dir()
-        files = sorted([f for f in os.listdir(path) if f.endswith('.cbz')])
-        for i, f in enumerate(files):
-            full_path = os.path.join(path, f)
+        series_dirs = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))])
+        for i, s_name in enumerate(series_dirs):
+            full_path = os.path.join(path, s_name)
+            volumes = [f for f in os.listdir(full_path) if f.endswith('.cbz')]
+            if not volumes: continue
             c = _make_card(dp(90))
+            first_vol_path = os.path.join(full_path, volumes[0])
             thumb = Image(size_hint_x=None, width=dp(58), allow_stretch=True, keep_ratio=True)
-            thumb.texture = _get_local_thumbnail(full_path)
+            thumb.texture = _get_local_thumbnail(first_vol_path)
             c.add_widget(thumb)
-            c.add_widget(_info_col(f, "File locale", f"{os.path.getsize(full_path) // 1048576} MB"))
+            c.add_widget(_info_col(s_name, f"{len(volumes)} volumi scaricati"))
             btns = BoxLayout(orientation='vertical', size_hint_x=None, width=dp(80), spacing=dp(4))
-            btns.add_widget(_make_btn('LEGGI', C_GOLD, callback=lambda fname=f: self.open_local(fname)))
-            btns.add_widget(_make_btn('ELIMINA', C_RED, callback=lambda fname=f: self.delete_local(fname)))
+            btns.add_widget(_make_btn('APRI', C_GOLD, callback=lambda sn=s_name: self.open_series_folder(sn)))
             c.add_widget(btns)
             self.ids.downloads_list.add_widget(c)
 
-    def open_local(self, filename):
-        path = os.path.join(_get_save_dir(), filename)
+    def open_series_folder(self, serie_name): self._show_volumes_popup(serie_name)
+
+    def _show_volumes_popup(self, serie_name):
+        path = os.path.join(_get_save_dir(), serie_name)
+        volumes = sorted([f for f in os.listdir(path) if f.endswith('.cbz')])
+        layout = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(12), size_hint_y=None)
+        layout.bind(minimum_height=layout.setter('height'))
+        scroll = ScrollView()
+        scroll.add_widget(layout)
+        popup = Popup(title=f"Volumi: {serie_name}", content=scroll, size_hint=(0.9, 0.8))
+        for v in volumes:
+            v_row = _make_card(dp(70))
+            v_row.add_widget(Label(text=v, color=C_TEXT, halign='left', size_hint_x=0.7))
+            btn_read = _make_btn('LEGGI', C_GOLD, width=dp(60), callback=lambda sn=serie_name, fname=v: self.open_local(sn, fname, popup))
+            v_row.add_widget(btn_read)
+            layout.add_widget(v_row)
+        popup.open()
+
+    def open_local(self, serie_name, filename, popup):
+        popup.dismiss()
+        path = os.path.join(_get_save_dir(), serie_name, filename)
         s = App.get_running_app().sm.get_screen('reader')
         s.load_local_book(path, filename)
         App.get_running_app().sm.current = 'reader'
 
-    def delete_local(self, filename):
-        try:
-            os.remove(os.path.join(_get_save_dir(), filename))
-            self.refresh_list()
-        except: pass
     def go_back(self): App.get_running_app().sm.current = 'search'
 
 # --- READER SCREEN ---
