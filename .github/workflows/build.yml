@@ -56,6 +56,9 @@ jobs:
 
       - name: Build APK
         run: |
+          # 1. Pulizia preventiva: evita che vecchi APK finiscano nella release
+          rm -rf bin/*.apk
+          
           # NON forzare ANDROID_SDK_ROOT o NDK qui. 
           # Buildozer userà i percorsi di default in ~/.buildozer
           yes | buildozer -v android debug
