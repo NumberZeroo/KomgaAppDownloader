@@ -31,17 +31,46 @@ class ApiClient:
         })
 
     def login(self, email, password):
+        # Assicuriamoci che l'URL sia formattato bene
+        if not self.base_url.startswith(('http://', 'https://')):
+            return False, "L'URL deve iniziare con http:// o https://"
+
         login_url = f"{self.base_url}/api/v2/users/me"
-        params = {'remember-me': 'false'}
         auth_string = f"{email}:{password}"
         auth_b64 = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-        login_headers = {'Authorization': f'Basic {auth_b64}'}
+
+        headers = {
+            'Authorization': f'Basic {auth_b64}',
+            'Accept': 'application/json'  # Chiediamo esplicitamente JSON
+        }
+
         try:
-            response = self.session.get(login_url, params=params, headers=login_headers)
+            # Impostiamo un timeout per evitare che l'app si blocchi all'infinito
+            # se il server non risponde
+            response = self.session.get(login_url, headers=headers, timeout=10)
+
+            # 1. Controlla codici di errore HTTP (401 Unauthorized, 404 Not Found, ecc.)
             response.raise_for_status()
-            return True, None
-        except requests.exceptions.RequestException as e:
-            return False, f"Errore: {e}"
+
+            # 2. Verifica che il contenuto sia effettivamente JSON (caratteristica di Komga)
+            data = response.json()
+
+            # 3. Controllo di sicurezza: verifichiamo che ci sia un campo tipico di Komga
+            if 'email' in data or 'role' in data:
+                return True, None
+            else:
+                return False, "Il server ha risposto, ma non sembra essere un server Komga."
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                return False, "Credenziali errate (Email o Password)."
+            return False, f"Errore server: {e.response.status_code}"
+        except requests.exceptions.ConnectionError:
+            return False, "Impossibile connettersi al server. Controlla l'indirizzo."
+        except requests.exceptions.Timeout:
+            return False, "Il server ha impiegato troppo tempo a rispondere."
+        except Exception as e:
+            return False, f"Errore imprevisto: {str(e)}"
 
     def search_books(self, search_term: str, size: int = 1000) -> List[Book]:
         search_url = f"{self.base_url}/api/v1/books/list"
