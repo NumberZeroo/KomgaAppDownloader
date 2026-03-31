@@ -153,16 +153,200 @@ def load_history(book_id: str) -> int:
 # --- WIDGETS ---
 
 class PageViewer(Widget):
+    """
+    Widget che mostra una pagina con zoom/pan gestito manualmente.
+    - Pinch con 2 dita  → zoom
+    - Drag con 1 dito (solo se zoomato) → pan
+    - Tap con 1 dito (non zoomato) → delega a ReaderScreen (nav/UI)
+    """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._img = Image(allow_stretch=True, keep_ratio=True)
-        self.bind(size=self._update_img, pos=self._update_img)
-        self.add_widget(self._img)
-    def _update_img(self, *args):
-        self._img.size = self.size
-        self._img.pos = self.pos
-    def set_texture(self, texture): self._img.texture = texture
-    def clear_page(self): self._img.texture = None
+        self._texture = None
+        self._scale = 1.0
+        self._offset_x = 0.0
+        self._offset_y = 0.0
+
+        # Stato touch
+        self._touch1 = None
+        self._touch2 = None
+        self._pinch_start_dist = 0.0
+        self._pinch_start_scale = 1.0
+        self._drag_start_pos = None
+        self._drag_start_offset = None
+        self._touch_down_pos = None   # per distinguere tap da drag
+
+        self.bind(size=self._redraw, pos=self._redraw)
+
+    # ── Texture ──────────────────────────────────────────────────────────────
+
+    def set_texture(self, texture):
+        self._texture = texture
+        self._scale = 1.0
+        self._offset_x = 0.0
+        self._offset_y = 0.0
+        self._redraw()
+
+    def clear_page(self):
+        self._texture = None
+        self.canvas.clear()
+
+    # ── Disegno ──────────────────────────────────────────────────────────────
+
+    def _redraw(self, *args):
+        from kivy.graphics import Rectangle
+        self.canvas.clear()
+        if not self._texture:
+            return
+
+        tw, th = self._texture.width, self._texture.height
+        ww, wh = self.width, self.height
+        if tw == 0 or th == 0 or ww == 0 or wh == 0:
+            return
+
+        # Scala base: fit-to-screen
+        base_scale = min(ww / tw, wh / th)
+        s = base_scale * self._scale
+
+        img_w = tw * s
+        img_h = th * s
+
+        # Centro + offset pan
+        x = (ww - img_w) / 2 + self._offset_x + self.x
+        y = (wh - img_h) / 2 + self._offset_y + self.y
+
+        with self.canvas:
+            from kivy.graphics import Color as GColor
+            GColor(1, 1, 1, 1)
+            Rectangle(texture=self._texture, pos=(x, y), size=(img_w, img_h))
+
+    def _clamp_offset(self):
+        """Impedisce all'immagine di uscire dallo schermo quando zoomata."""
+        if self._scale <= 1.0:
+            self._offset_x = 0.0
+            self._offset_y = 0.0
+            return
+
+        tw, th = (self._texture.width, self._texture.height) if self._texture else (1, 1)
+        ww, wh = self.width, self.height
+        base_scale = min(ww / tw, wh / th)
+        s = base_scale * self._scale
+
+        img_w = tw * s
+        img_h = th * s
+
+        max_ox = max(0, (img_w - ww) / 2)
+        max_oy = max(0, (img_h - wh) / 2)
+
+        self._offset_x = max(-max_ox, min(max_ox, self._offset_x))
+        self._offset_y = max(-max_oy, min(max_oy, self._offset_y))
+
+    # ── Touch ─────────────────────────────────────────────────────────────────
+
+    def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            return False
+
+        touch.grab(self)
+
+        if self._touch1 is None:
+            self._touch1 = touch
+            self._touch_down_pos = touch.pos
+            # Prepara drag (usato solo se zoomato)
+            self._drag_start_pos = touch.pos
+            self._drag_start_offset = (self._offset_x, self._offset_y)
+        elif self._touch2 is None and touch is not self._touch1:
+            self._touch2 = touch
+            # Inizio pinch
+            dx = self._touch2.pos[0] - self._touch1.pos[0]
+            dy = self._touch2.pos[1] - self._touch1.pos[1]
+            self._pinch_start_dist = max((dx*dx + dy*dy) ** 0.5, 1)
+            self._pinch_start_scale = self._scale
+
+        return True
+
+    def on_touch_move(self, touch):
+        if touch.grab_current is not self:
+            return False
+
+        if self._touch1 and self._touch2:
+            # ── PINCH ZOOM ──
+            dx = self._touch2.pos[0] - self._touch1.pos[0]
+            dy = self._touch2.pos[1] - self._touch1.pos[1]
+            dist = max((dx*dx + dy*dy) ** 0.5, 1)
+            ratio = dist / self._pinch_start_dist
+            new_scale = max(1.0, min(5.0, self._pinch_start_scale * ratio))
+            self._scale = new_scale
+            self._clamp_offset()
+            self._redraw()
+
+        elif self._touch1 and touch is self._touch1 and self._scale > 1.05:
+            # ── PAN (solo se zoomato) ──
+            dx = touch.pos[0] - self._drag_start_pos[0]
+            dy = touch.pos[1] - self._drag_start_pos[1]
+            self._offset_x = self._drag_start_offset[0] + dx
+            self._offset_y = self._drag_start_offset[1] + dy
+            self._clamp_offset()
+            self._redraw()
+
+        return True
+
+    def on_touch_up(self, touch):
+        if touch.grab_current is not self:
+            return False
+        touch.ungrab(self)
+
+        was_pinching = (self._touch1 is not None and self._touch2 is not None)
+
+        if touch is self._touch1:
+            self._touch1 = None
+            self._drag_start_pos = None
+            self._drag_start_offset = None
+        elif touch is self._touch2:
+            self._touch2 = None
+
+        # Se non stavamo facendo pinch e non zoomati → è un tap di navigazione
+        if not was_pinching and self._scale <= 1.05:
+            if self._touch_down_pos:
+                dx = abs(touch.pos[0] - self._touch_down_pos[0])
+                dy = abs(touch.pos[1] - self._touch_down_pos[1])
+                if dx < dp(15) and dy < dp(15):
+                    # È un vero tap: delega al reader
+                    self._handle_tap(touch.pos)
+        self._touch_down_pos = None
+
+        return True
+
+    def _handle_tap(self, pos):
+        """Delega il tap alla ReaderScreen per nav/toggle UI."""
+        reader = self.parent
+        # Risali fino a ReaderScreen
+        while reader and not isinstance(reader, ReaderScreen):
+            reader = reader.parent
+        if not reader:
+            return
+
+        rx, rw = self.x, self.width
+        rel = (pos[0] - rx) / rw  # 0.0 = sinistra, 1.0 = destra
+
+        if rel < 0.25:
+            reader.on_left_tap()
+        elif rel > 0.75:
+            reader.on_right_tap()
+        else:
+            reader.toggle_ui()
+
+    # ── API pubblica ──────────────────────────────────────────────────────────
+
+    def reset_zoom(self):
+        self._scale = 1.0
+        self._offset_x = 0.0
+        self._offset_y = 0.0
+        self._redraw()
+
+    @property
+    def is_zoomed(self):
+        return self._scale > 1.05
 
 # --- SCHERMI ---
 class LoginScreen(Screen):
@@ -384,26 +568,21 @@ class SearchScreen(Screen):
         def _thread():
             app = App.get_running_app()
             base_dir = _get_save_dir()
-            skipped = 0  # Contatore file già presenti
+            skipped = 0
 
             for idx, b in enumerate(books):
-                # 1. Trova nome serie per la cartella
                 s_title = getattr(b, 'series_title', 'Unknown Series')
                 serie_safe = "".join(c for c in s_title if c.isalnum() or c in ' .-_').rstrip()
                 serie_path = os.path.join(base_dir, serie_safe)
                 os.makedirs(serie_path, exist_ok=True)
 
-                # 2. Percorso file
                 safe = "".join(c for c in b.name if c.isalnum() or c in ' .-_').rstrip()
                 file_path = os.path.join(serie_path, f"{safe}.cbz")
 
-                # --- SMART CHECK: Salta se esiste ---
                 if os.path.exists(file_path):
                     skipped += 1
                     Clock.schedule_once(lambda dt, i=idx: setattr(self, 'download_progress', i + 1))
                     continue
-
-                # ------------------------------------
 
                 def _prog(cur, tot, i=idx, n=len(books)):
                     Clock.schedule_once(lambda dt: setattr(self, 'download_status', f'{i + 1}/{n} - Pag {cur}/{tot}'))
@@ -433,29 +612,21 @@ class SeriesBooksScreen(Screen):
     download_status = StringProperty('')
 
     def select_all(self):
-        """Seleziona tutti i volumi nella lista e aggiorna i CheckBox"""
         for b in self._books:
             setattr(b, '_selected', True)
-
-        # Aggiorna visivamente i CheckBox nella lista
         for card in self.ids.volumes_list.children:
-            # Il CheckBox è il primo widget aggiunto alla card nel metodo _populate_volumes
             for widget in card.children:
                 if isinstance(widget, CheckBox):
                     widget.active = True
-
         self.status_text = f"Selezionati {len(self._books)} volumi"
 
     def deselect_all(self):
-        """Deseleziona tutti i volumi nella lista"""
         for b in self._books:
             setattr(b, '_selected', False)
-
         for card in self.ids.volumes_list.children:
             for widget in card.children:
                 if isinstance(widget, CheckBox):
                     widget.active = False
-
         self.status_text = "Selezione annullata"
 
     def load_series(self, s):
@@ -508,22 +679,17 @@ class SeriesBooksScreen(Screen):
             skipped = 0
 
             for idx, b in enumerate(books):
-                # Cartella della serie (usa self.series_name caricato in questa schermata)
                 serie_safe = "".join(c for c in self.series_name if c.isalnum() or c in ' .-_').rstrip()
                 serie_path = os.path.join(base_dir, serie_safe)
                 os.makedirs(serie_path, exist_ok=True)
 
-                # Nome file libro
                 safe = "".join(c for c in b.name if c.isalnum() or c in ' .-_').rstrip()
                 file_path = os.path.join(serie_path, f"{safe}.cbz")
 
-                # --- SMART CHECK: Salta se esiste ---
                 if os.path.exists(file_path):
                     skipped += 1
                     Clock.schedule_once(lambda dt, i=idx: setattr(self, 'download_progress', i + 1))
                     continue
-
-                # ------------------------------------
 
                 def _prog(cur, tot, i=idx, n=len(books)):
                     Clock.schedule_once(lambda dt: setattr(self, 'download_status', f'{i + 1}/{n} - Pag {cur}/{tot}'))
@@ -611,7 +777,10 @@ class ReaderScreen(Screen):
         self.show_ui = True
         self.ids.top_bar.pos_hint = {'top': 1}
         self.ids.bottom_bar.pos_hint = {'y': 0}
-        self.reset_zoom()
+        self.ids.page_viewer.reset_zoom()
+
+    def on_leave(self):
+        pass  # nulla da fare, niente binding esterni
 
     def load_book(self, b):
         self._is_local = False
@@ -636,6 +805,8 @@ class ReaderScreen(Screen):
         self.current_page = min(saved, self.total_pages)
         self.ids.page_viewer.clear_page()
         self._load_page(self.current_page)
+
+    # ── Navigazione ──────────────────────────────────────────────────────────
 
     def on_left_tap(self):
         if self.rtl_mode: self.next_page()
@@ -664,12 +835,14 @@ class ReaderScreen(Screen):
     def next_page(self):
         if self.current_page < self.total_pages:
             self.current_page += 1
+            self.ids.page_viewer.reset_zoom()
             self._load_page(self.current_page)
             self._save_hist()
 
     def prev_page(self):
         if self.current_page > 1:
             self.current_page -= 1
+            self.ids.page_viewer.reset_zoom()
             self._load_page(self.current_page)
             self._save_hist()
 
@@ -678,24 +851,17 @@ class ReaderScreen(Screen):
         save_history(key, self.current_page)
 
     def reset_zoom(self):
-        Animation(scale=1.0, pos=(0, 0), d=0.2).start(self.ids.scatter)
+        self.ids.page_viewer.reset_zoom()
 
-    def check_bounds(self):
-        s = self.ids.scatter
-        if s.scale <= 1.01: return
-        mx = (s.width * s.scale - s.width) / 2
-        my = (s.height * s.scale - s.height) / 2
-        if s.x > mx: s.x = mx
-        if s.x < -mx: s.x = -mx
-        if s.y > my: s.y = my
-        if s.y < -my: s.y = -my
-
-    def toggle_rtl(self): self.rtl_mode = not self.rtl_mode
+    def toggle_rtl(self):
+        self.rtl_mode = not self.rtl_mode
 
     def close_reader(self):
         self._save_hist()
         self._cache.clear()
         App.get_running_app().sm.current = 'downloads' if self._is_local else 'search'
+
+    # ── Caricamento pagine ────────────────────────────────────────────────────
 
     def _load_page(self, n):
         if n < 1 or n > self.total_pages: return
@@ -715,7 +881,9 @@ class ReaderScreen(Screen):
                         try:
                             t = CoreImage(io.BytesIO(d), ext='png').texture
                             self._cache[n] = t
-                            if self.current_page == n: self.ids.page_viewer.set_texture(t); self._prefetch_next(n)
+                            if self.current_page == n:
+                                self.ids.page_viewer.set_texture(t)
+                                self._prefetch_next(n)
                         except: pass
                     Clock.schedule_once(_apply)
                 self._loading.discard(n)
@@ -729,14 +897,16 @@ class ReaderScreen(Screen):
                 def _apply(dt):
                     t = CoreImage(io.BytesIO(data), ext='png').texture
                     self._cache[n] = t
-                    if self.current_page == n: self.ids.page_viewer.set_texture(t)
+                    if self.current_page == n:
+                        self.ids.page_viewer.set_texture(t)
                 Clock.schedule_once(_apply)
         except: pass
 
     def _prefetch_next(self, curr):
         if self._is_local: return
         for p in range(curr + 1, min(curr + 6, self.total_pages + 1)):
-            if p not in self._cache and p not in self._loading: self._do_prefetch(p)
+            if p not in self._cache and p not in self._loading:
+                self._do_prefetch(p)
 
     def _do_prefetch(self, n):
         self._loading.add(n)
