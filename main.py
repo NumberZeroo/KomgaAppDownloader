@@ -35,7 +35,7 @@ C_TEXT = (0.95, 0.93, 1.00, 1)
 C_GOLD = (0.95, 0.80, 0.10, 1)
 C_GREEN = (0.30, 0.18, 0.45, 1)
 
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 
 
 class KomgaApp(App):
