@@ -458,27 +458,28 @@ class SearchScreen(Screen):
         self._series = []
 
     def on_enter(self):
-        self._check_updates()
+        pass
+        #self._check_updates()
 
-    def _check_updates(self):
-        app = App.get_running_app()
-        def _on_result(new_tag, apk_url):
-            if new_tag: Clock.schedule_once(lambda dt: self._show_update_popup(new_tag, apk_url))
-        check_for_update(app.version, _on_result)
+    #def _check_updates(self):
+    #    app = App.get_running_app()
+    #    def _on_result(new_tag, apk_url):
+    #        if new_tag: Clock.schedule_once(lambda dt: self._show_update_popup(new_tag, apk_url))
+    #    check_for_update(app.version, _on_result)
 
-    def _show_update_popup(self, new_tag, apk_url):
-        content = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(12))
-        content.add_widget(Label(text=f"Nuova versione disponibile!\n[b]{new_tag}[/b]", markup=True, halign='center', color=C_TEXT))
-        btns = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        popup = Popup(title='Aggiornamento', content=content, size_hint=(0.85, 0.35))
-        def _apri(dt=None):
-            import webbrowser
-            webbrowser.open(apk_url)
-            popup.dismiss()
-        btns.add_widget(_make_btn('AGGIORNA', C_GOLD, callback=_apri))
-        btns.add_widget(_make_btn('PIÙ TARDI', C_GREEN, callback=popup.dismiss))
-        content.add_widget(btns)
-        popup.open()
+    # def _show_update_popup(self, new_tag, apk_url):
+    #     content = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(12))
+    #     content.add_widget(Label(text=f"Nuova versione disponibile!\n[b]{new_tag}[/b]", markup=True, halign='center', color=C_TEXT))
+    #     btns = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+    #     popup = Popup(title='Aggiornamento', content=content, size_hint=(0.85, 0.35))
+    #     def _apri(dt=None):
+    #         import webbrowser
+    #         webbrowser.open(apk_url)
+    #         popup.dismiss()
+    #     btns.add_widget(_make_btn('AGGIORNA', C_GOLD, callback=_apri))
+    #     btns.add_widget(_make_btn('PIÙ TARDI', C_GREEN, callback=popup.dismiss))
+    #     content.add_widget(btns)
+    #     popup.open()
 
     def do_search(self):
         term = self.ids.search_input.text.strip()
